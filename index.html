@@ -1,0 +1,337 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mechanical Timer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #3c2f2f url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"%3E%3Ccircle cx="50" cy="50" r="20" fill="none" stroke="%235a4d4d" stroke-width="2"/%3E%3Ccircle cx="150" cy="150" r="30" fill="none" stroke="%235a4d4d" stroke-width="2"/%3E%3Cline x1="50" y1="50" x2="150" y2="150" stroke="%235a4d4d" stroke-width="1"/%3E%3C/svg%3E') repeat;
+            padding: 20px;
+        }
+
+        .timer-machine {
+            background: linear-gradient(135deg, #8a7a5e, #6b5b3f);
+            border-radius: 15px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5), 0 10px 20px rgba(0, 0, 0, 0.4);
+            padding: 25px;
+            width: 90%;
+            max-width: 500px;
+            border: 3px solid #4a3c31;
+            position: relative;
+        }
+
+        .timer-machine::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border-radius: 20px;
+            border: 5px dotted #4a3c31;
+            pointer-events: none;
+        }
+
+        h2 {
+            color: #e8dede;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        label {
+            color: #e8dede;
+            font-size: 1.2rem;
+            margin-right: 5px;
+        }
+
+        input {
+            width: 60px;
+            padding: 8px;
+            font-size: 1.1rem;
+            background: #2c2526;
+            color: #e8dede;
+            border: 2px inset #4a3c31;
+            border-radius: 8px;
+            outline: none;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .timer-display {
+            font-size: 3rem;
+            color: #e8dede;
+            background: #2c2526;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px inset #4a3c31;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+            transition: color 0.3s ease;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 1.2rem;
+            border: 2px outset #4a3c31;
+            border-radius: 8px;
+            background: linear-gradient(145deg, #a89c7b, #7b6e50);
+            color: #2c2526;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(2px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(145deg, #b8ac8b, #8b7e60);
+        }
+
+        button:active {
+            transform: translateY(4px);
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .start-btn {
+            background: linear-gradient(145deg, #3b8a63, #2d6b4a);
+        }
+
+        .start-btn:hover {
+            background: linear-gradient(145deg, #4b9a73, #3d7b5a);
+        }
+
+        .stop-btn {
+            background: linear-gradient(145deg, #a63b3b, #7b2d2d);
+        }
+
+        .stop-btn:hover {
+            background: linear-gradient(145deg, #b64b4b, #8b3d3d);
+        }
+
+        .restart-btn {
+            background: linear-gradient(145deg, #d4a017, #a37d12);
+        }
+
+        .restart-btn:hover {
+            background: linear-gradient(145deg, #e4b027, #b38d22);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .timer-machine {
+                padding: 15px;
+                max-width: 100%;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+
+            .timer-display {
+                font-size: 2rem;
+            }
+
+            input {
+                width: 50px;
+                font-size: 1rem;
+            }
+
+            button {
+                padding: 10px 20px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="timer-machine">
+        <h2>Mechanical Timer</h2>
+        <div class="input-group">
+            <label for="minutes">Minutes:</label>
+            <input type="number" id="minutes" min="0" max="59" value="1">
+            <label for="seconds">Seconds:</label>
+            <input type="number" id="seconds" min="0" max="59" value="0">
+        </div>
+        <div class="timer-display" id="timer-display">01:00</div>
+        <div class="buttons">
+            <button class="start-btn" onclick="startTimer()">Start</button>
+            <button class="stop-btn" onclick="stopTimer()">Stop</button>
+            <button class="restart-btn" onclick="restartTimer()">Restart</button>
+        </div>
+    </div>
+
+    <script>
+        let timerInterval = null;
+        let totalSeconds = 0;
+        let initialSeconds = 0;
+        let colorToggle = true; // For alternating colors
+        let wakeLock = null; // For Screen Wake Lock API
+
+        // Request screen wake lock
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock activated');
+                }
+            } catch (err) {
+                console.log('Wake Lock failed:', err);
+            }
+        }
+
+        // Release screen wake lock
+        async function releaseWakeLock() {
+            if (wakeLock) {
+                await wakeLock.release();
+                wakeLock = null;
+                console.log('Wake Lock released');
+            }
+        }
+
+        function updateDisplay() {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            document.getElementById('timer-display').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function toggleColorAndVibrate() {
+            const display = document.getElementById('timer-display');
+            colorToggle = !colorToggle;
+            display.style.color = colorToggle ? '#ff6161' : '#2db56b'; // Red or Green
+
+            // Trigger vibration on Android (200ms)
+            if ('vibrate' in navigator) {
+                navigator.vibrate(200);
+            }
+        }
+
+        async function startTimer() {
+            if (timerInterval) return; // Prevent multiple intervals
+
+            const minutes = parseInt(document.getElementById('minutes').value) || 0;
+            const seconds = parseInt(document.getElementById('seconds').value) || 0;
+            totalSeconds = minutes * 60 + seconds;
+            initialSeconds = totalSeconds;
+
+            if (totalSeconds <= 0) {
+                alert('Please set a valid time!');
+                return;
+            }
+
+            // Request screen wake lock
+            await requestWakeLock();
+
+            updateDisplay();
+            let lastColorChange = totalSeconds;
+
+            timerInterval = setInterval(() => {
+                if (totalSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    totalSeconds = 0;
+                    updateDisplay();
+                    document.getElementById('timer-display').style.color = '#e8dede'; // Reset color
+                    if ('vibrate' in navigator) navigator.vibrate(200); // Vibrate at end
+                    releaseWakeLock(); // Release wake lock when timer ends
+                    return;
+                }
+
+                totalSeconds--;
+                updateDisplay();
+
+                // Check if we've hit a 5-second interval
+                if (Math.floor(lastColorChange / 5) !== Math.floor(totalSeconds / 5)) {
+                    toggleColorAndVibrate();
+                    lastColorChange = totalSeconds;
+                }
+            }, 1000);
+        }
+
+        async function stopTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            await releaseWakeLock(); // Release wake lock when stopping
+        }
+
+        async function restartTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            totalSeconds = initialSeconds;
+            updateDisplay();
+            document.getElementById('timer-display').style.color = '#e8dede'; // Reset color
+            colorToggle = true;
+            await releaseWakeLock(); // Release wake lock when restarting
+        }
+
+        // Initialize display
+        updateDisplay();
+    </script>
+</body>
+</html>
